@@ -8,14 +8,18 @@ import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import java.util.concurrent.Executors
 
 class CameraActivity : ComponentActivity() {
     private lateinit var previewView: PreviewView
+    private lateinit var visionLabel: TextView
+    private val analyzerExecutor = Executors.newSingleThreadExecutor()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -28,13 +32,13 @@ class CameraActivity : ComponentActivity() {
         val root = FrameLayout(this)
         root.addView(previewView)
 
-        val label = TextView(this).apply {
+        visionLabel = TextView(this).apply {
             text = "J.A.R.V.I.S  •  VISIÓN ACTIVA"
             textSize = 16f
             setTextColor(android.graphics.Color.WHITE)
             setPadding(24, 48, 24, 24)
         }
-        root.addView(label)
+        root.addView(visionLabel)
         setContentView(root)
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
@@ -51,8 +55,28 @@ class CameraActivity : ComponentActivity() {
             val preview = Preview.Builder().build().also {
                 it.surfaceProvider = previewView.surfaceProvider
             }
+
+            val analysis = ImageAnalysis.Builder()
+                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                .build()
+                .also {
+                    it.setAnalyzer(analyzerExecutor, JarvisVisionAnalyzer { info ->
+                        runOnUiThread { visionLabel.text = "J.A.R.V.I.S  •  $info" }
+                    })
+                }
+
             provider.unbindAll()
-            provider.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA, preview)
+            provider.bindToLifecycle(
+                this,
+                CameraSelector.DEFAULT_BACK_CAMERA,
+                preview,
+                analysis
+            )
         }, ContextCompat.getMainExecutor(this))
+    }
+
+    override fun onDestroy() {
+        analyzerExecutor.shutdown()
+        super.onDestroy()
     }
 }
