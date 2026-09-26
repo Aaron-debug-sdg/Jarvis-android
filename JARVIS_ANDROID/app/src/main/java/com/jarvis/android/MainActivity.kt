@@ -6,6 +6,11 @@ import android.content.pm.PackageManager
 import android.os.Bundle
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
@@ -19,10 +24,21 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
     private lateinit var state: TextView
     private lateinit var response: TextView
     private val cameraRequest = 1001
+    private val wakeReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == JarvisWakeService.ACTION_WAKE) {
+                state.text = "JARVIS ACTIVATED"
+                response.text = "Sí, te escucho."
+                speak("Sí, te escucho.")
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        registerWakeReceiver()
+        startWakeService()
         tts = TextToSpeech(this, this)
         state = findViewById(R.id.systemState)
         response = findViewById(R.id.responseText)
@@ -89,7 +105,22 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
         tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "jarvis")
     }
 
+    private fun startWakeService() {
+        val intent = Intent(this, JarvisWakeService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(intent) else startService(intent)
+    }
+
+    private fun registerWakeReceiver() {
+        val filter = IntentFilter(JarvisWakeService.ACTION_WAKE)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(wakeReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION") registerReceiver(wakeReceiver, filter)
+        }
+    }
+
     override fun onDestroy() {
+        unregisterReceiver(wakeReceiver)
         tts.stop()
         tts.shutdown()
         super.onDestroy()
