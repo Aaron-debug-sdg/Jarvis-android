@@ -26,6 +26,8 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
     private lateinit var state: TextView
     private lateinit var response: TextView\n    private val brain = JarvisBrain()
     private val cameraRequest = 1001
+    private val microphoneRequest = 1002
+    private val notificationRequest = 1003
     private val wakeReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == JarvisWakeService.ACTION_COMMAND) {
@@ -144,7 +146,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
         tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "jarvis")
     }
 
-    private fun startWakeService() {
+    private fun prepareVoiceService() {\n        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {\n            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), microphoneRequest)\n            return\n        }\n        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {\n            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), notificationRequest)\n        }\n        startWakeService()\n    }\n\n    private fun startWakeService() {
         val intent = Intent(this, JarvisWakeService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(intent) else startService(intent)
     }
