@@ -18,13 +18,23 @@ import androidx.core.content.ContextCompat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
     private lateinit var tts: TextToSpeech
     private lateinit var state: TextView
     private lateinit var response: TextView
+    private lateinit var hud: JarvisHudController
     private val brain by lazy { JarvisBrain(this) }
     private val memory by lazy { JarvisMemory(this) }
+    private val conversation by lazy { JarvisConversationStore(this) }
+    private val parser = JarvisCommandParser()
+    private val deviceActions by lazy { JarvisDeviceActions(this) }
+    private var aiJob: Job? = null
+
     private val cameraRequest = 1001
     private val microphoneRequest = 1002
     private val notificationRequest = 1003
@@ -41,6 +51,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                 JarvisWakeService.ACTION_WAKE -> {
                     state.text = "JARVIS ACTIVATED"
                     response.text = "Sí, te escucho."
+                    hud.pulse()
                     speak("Sí, te escucho.")
                 }
             }
@@ -53,6 +64,8 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
 
         state = findViewById(R.id.systemState)
         response = findViewById(R.id.responseText)
+        hud = JarvisHudController(findViewById(R.id.arcCore))
+        hud.start()
         tts = TextToSpeech(this, this)
 
         findViewById<Button>(R.id.listenButton).setOnClickListener { startListening() }
@@ -68,6 +81,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
     private fun startListening() {
         state.text = "LISTENING..."
         response.text = "Te escucho."
+        hud.pulse()
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-ES")
@@ -91,85 +105,102 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
 
         state.text = "COMMAND RECEIVED"
         response.text = command
-        processCommand(command.lowercase(Locale.ROOT))
+        processCommand(command)
     }
 
-    private fun processCommand(command: String) {
-        val clean = command.removePrefix("jarvis").trim()
+    private fun processCommand(rawCommand: String) {
+        val clean = rawCommand.trim().removePrefix("JARVIS").removePrefix("jarvis").trim()
         if (clean.isBlank()) {
             speak("A sus órdenes.")
             return
         }
 
-        when {
-            "hora" in clean -> {
+        conversation.add("user", clean)
+        when (val parsed = parser.parse(clean)) {
+            JarvisCommand.Time -> {
                 val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
-                response.text = "Son las $time"
-                speak("Son las $time.")
+                answer("Son las $time.")
             }
-            "fecha" in clean || "día" in clean || "dia" in clean -> {
+            JarvisCommand.Date -> {
                 val date = SimpleDateFormat("EEEE d 'de' MMMM", Locale("es", "ES")).format(Date())
-                response.text = date
-                speak("Hoy es $date.")
+                answer("Hoy es $date.")
             }
-            "cámara" in clean || "camara" in clean -> {
-                speak("Activando cámara.")
+            JarvisCommand.Camera, JarvisCommand.Vision -> {
+                answer("Activando visión.")
                 prepareCamera()
             }
-            "visión" in clean || "vision" in clean -> {
-                speak("Activando visión.")
-                prepareCamera()
-            }
-            "hola" in clean -> speak("Hola. JARVIS operativo.")
-            "cómo estás" in clean || "como estas" in clean ->
-                speak("Todos los sistemas funcionan correctamente.")
-            "jarvis" == clean -> speak("A sus órdenes.")
-            else -> processMemoryCommand(clean)
+            is JarvisCommand.Unknown -> processSpecialCommand(parsed.text)
+            is JarvisCommand.AskAI -> askBrain(parsed.text)
         }
     }
 
-    private fun processMemoryCommand(command: String) {
-        val rememberPrefix = "recuerda "
-        val whatPrefix = "qué recuerdas"
+    private fun processSpecialCommand(command: String) {
         when {
-            command.startsWith(rememberPrefix) && command.contains(" es ") -> {
-                val parts = command.removePrefix(rememberPrefix).split(" es ", limit = 2)
+            command == "hola" -> answer("Hola. JARVIS operativo.")
+            command == "cómo estás" || command == "como estas" ->
+                answer("Todos los sistemas funcionan correctamente.")
+            command == "abre ajustes" || command == "abre configuración" ->
+                answer("Abriendo ajustes del dispositivo.") { deviceActions.openSettings() }
+            command == "abre navegador" || command == "abre internet" ->
+                answer("Abriendo navegador.") { deviceActions.openBrowser() }
+            command == "sube el volumen" || command == "sube volumen" ->
+                answer("Subiendo volumen.") { deviceActions.volumeUp() }
+            command == "baja el volumen" || command == "baja volumen" ->
+                answer("Bajando volumen.") { deviceActions.volumeDown() }
+            command.startsWith("recuerda ") && command.contains(" es ") -> {
+                val parts = command.removePrefix("recuerda ").split(" es ", limit = 2)
                 memory.remember(parts[0], parts[1])
-                speak("Lo recordaré.")
+                answer("Lo recordaré.")
             }
             command.startsWith("recuerda que ") -> {
-                memory.remember("nota", command.removePrefix("recuerda que "))
-                speak("Guardado en mi memoria.")
+                memory.remember("nota_" + System.currentTimeMillis(), command.removePrefix("recuerda que "))
+                answer("Guardado en mi memoria.")
             }
             command.startsWith("qué sabes de ") -> {
                 val key = command.removePrefix("qué sabes de ").trim()
                 val value = memory.recall(key)
-                if (value.isNullOrBlank()) {
-                    askBrain(command)
-                } else {
-                    response.text = value
-                    speak(value)
-                }
+                if (value.isNullOrBlank()) askBrain(command) else answer(value)
             }
-            command == whatPrefix -> {
-                val notes = memory.entries().values.joinToString(". ")
-                val answer = if (notes.isBlank()) "Mi memoria local está vacía." else notes
-                response.text = answer
-                speak(answer)
+            command == "qué recuerdas" || command == "que recuerdas" -> {
+                val notes = memory.entries().entries.joinToString(". ") { "${it.key}: ${it.value}" }
+                answer(if (notes.isBlank()) "Mi memoria local está vacía." else notes)
+            }
+            command == "borra memoria" || command == "olvida todo" -> {
+                memory.clear()
+                conversation.clear()
+                answer("Memoria local borrada.")
             }
             else -> askBrain(command)
         }
     }
 
     private fun askBrain(prompt: String) {
+        aiJob?.cancel()
         state.text = "AI PROCESSING..."
         response.text = "Procesando..."
-        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
-            val answer = brain.ask(prompt)
+        hud.pulse()
+        aiJob = CoroutineScope(Dispatchers.Main).launch {
+            val history = conversation.recent().takeLast(10)
+            val contextPrompt = if (history.isEmpty()) {
+                prompt
+            } else {
+                history.joinToString("\n") { "${it.role}: ${it.text}" } + "\nuser: " + prompt
+            }
+            val answer = brain.ask(contextPrompt)
+            conversation.add("assistant", answer)
             response.text = answer
             speak(answer)
             state.text = "SYSTEM ONLINE"
         }
+    }
+
+    private fun answer(text: String, action: (() -> Unit)? = null) {
+        response.text = text
+        conversation.add("assistant", text)
+        speak(text)
+        action?.invoke()
+        state.text = "SYSTEM ONLINE"
+        hud.pulse()
     }
 
     private fun prepareCamera() {
@@ -194,9 +225,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
     }
 
     override fun onInit(statusCode: Int) {
-        if (statusCode == TextToSpeech.SUCCESS) {
-            tts.language = Locale("es", "ES")
-        }
+        if (statusCode == TextToSpeech.SUCCESS) tts.language = Locale("es", "ES")
     }
 
     private fun speak(text: String) {
@@ -214,17 +243,12 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
         ) {
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), notificationRequest)
         }
-
         startWakeService()
     }
 
     private fun startWakeService() {
         val intent = Intent(this, JarvisWakeService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(intent)
-        } else {
-            startService(intent)
-        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(intent) else startService(intent)
     }
 
     private fun registerWakeReceiver() {
@@ -241,7 +265,9 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
     }
 
     override fun onDestroy() {
+        aiJob?.cancel()
         runCatching { unregisterReceiver(wakeReceiver) }
+        hud.stop()
         tts.stop()
         tts.shutdown()
         super.onDestroy()
