@@ -24,6 +24,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
     private lateinit var state: TextView
     private lateinit var response: TextView
     private val brain by lazy { JarvisBrain(this) }
+    private val memory by lazy { JarvisMemory(this) }
     private val cameraRequest = 1001
     private val microphoneRequest = 1002
     private val notificationRequest = 1003
@@ -123,7 +124,40 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
             "cómo estás" in clean || "como estas" in clean ->
                 speak("Todos los sistemas funcionan correctamente.")
             "jarvis" == clean -> speak("A sus órdenes.")
-            else -> askBrain(clean)
+            else -> processMemoryCommand(clean)
+        }
+    }
+
+    private fun processMemoryCommand(command: String) {
+        val rememberPrefix = "recuerda "
+        val whatPrefix = "qué recuerdas"
+        when {
+            command.startsWith(rememberPrefix) && command.contains(" es ") -> {
+                val parts = command.removePrefix(rememberPrefix).split(" es ", limit = 2)
+                memory.remember(parts[0], parts[1])
+                speak("Lo recordaré.")
+            }
+            command.startsWith("recuerda que ") -> {
+                memory.remember("nota", command.removePrefix("recuerda que "))
+                speak("Guardado en mi memoria.")
+            }
+            command.startsWith("qué sabes de ") -> {
+                val key = command.removePrefix("qué sabes de ").trim()
+                val value = memory.recall(key)
+                if (value.isNullOrBlank()) {
+                    askBrain(command)
+                } else {
+                    response.text = value
+                    speak(value)
+                }
+            }
+            command == whatPrefix -> {
+                val notes = memory.entries().values.joinToString(". ")
+                val answer = if (notes.isBlank()) "Mi memoria local está vacía." else notes
+                response.text = answer
+                speak(answer)
+            }
+            else -> askBrain(command)
         }
     }
 
