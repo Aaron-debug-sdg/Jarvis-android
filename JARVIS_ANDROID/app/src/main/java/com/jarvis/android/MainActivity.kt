@@ -8,6 +8,7 @@ import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
 import android.widget.Button
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -69,18 +70,14 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA), cameraRequest)
         } else {
-            state.text = "CAMERA READY"
-            response.text = "Cámara preparada."
-            speak("Cámara preparada.")
+            startActivity(Intent(this, CameraActivity::class.java))
         }
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, results: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, results)
         if (requestCode == cameraRequest && results.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
-            state.text = "CAMERA READY"
-            response.text = "Cámara preparada."
-            speak("Cámara preparada.")
+            startActivity(Intent(this, CameraActivity::class.java))
         }
     }
 
