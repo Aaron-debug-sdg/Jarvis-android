@@ -76,4 +76,4 @@
         android:textColor="#19C8FF"
         android:background="@drawable/hud_button"
         android:layout_marginTop="12dp"/>
-</LinearLayout>
+    <Button\n        android:id="@+id/settingsButton"\n        android:layout_width="match_parent"\n        android:layout_height="52dp"\n        android:text="AJUSTES DE IA"\n        android:textColor="#19C8FF"\n        android:background="@drawable/hud_button"\n        android:layout_marginTop="12dp"/>\n</LinearLayout>
