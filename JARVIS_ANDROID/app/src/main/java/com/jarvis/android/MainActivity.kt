@@ -24,10 +24,10 @@ import java.util.Locale
 class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
     private lateinit var tts: TextToSpeech
     private lateinit var state: TextView
-    private lateinit var response: TextView\n    private val brain = JarvisBrain()
+    private lateinit var response: TextView\n    private val brain by lazy { JarvisBrain(this) }
     private val cameraRequest = 1001
     private val microphoneRequest = 1002
-    private val notificationRequest = 1003
+    private val notificationRequest = 1003\n    private val brain by lazy { JarvisBrain(this) }
     private val wakeReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == JarvisWakeService.ACTION_COMMAND) {
@@ -52,7 +52,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
         state = findViewById(R.id.systemState)
         response = findViewById(R.id.responseText)
         findViewById<Button>(R.id.listenButton).setOnClickListener { startListening() }
-        findViewById<Button>(R.id.cameraButton).setOnClickListener { prepareCamera() }
+        findViewById<Button>(R.id.cameraButton).setOnClickListener { prepareCamera() }\n        findViewById<Button>(R.id.settingsButton).setOnClickListener { startActivity(Intent(this, SettingsActivity::class.java)) }
     }
 
     private fun startListening() {
