@@ -24,7 +24,7 @@ import java.util.Locale
 class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
     private lateinit var tts: TextToSpeech
     private lateinit var state: TextView
-    private lateinit var response: TextView
+    private lateinit var response: TextView\n    private val brain = JarvisBrain()
     private val cameraRequest = 1001
     private val wakeReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -107,11 +107,11 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
             "hola" in clean -> speak("Hola. JARVIS operativo.")
             "cómo estás" in clean || "como estas" in clean -> speak("Todos los sistemas funcionan correctamente.")
             "jarvis" == clean -> speak("A sus órdenes.")
-            else -> speak("He recibido la orden: $clean")
+            else -> askBrain(clean)
         }
     }
 
-    private fun legacyProcessCommand(command: String) {
+    private fun askBrain(prompt: String) {\n        state.text = "AI PROCESSING..."\n        response.text = "Procesando..."\n        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {\n            val answer = brain.ask(prompt)\n            response.text = answer\n            speak(answer)\n            state.text = "SYSTEM ONLINE"\n        }\n    }\n\n    private fun legacyProcessCommand(command: String) {
         when {
             "hola" in command -> speak("Hola. JARVIS operativo.")
             "cómo estás" in command || "como estas" in command -> speak("Todos los sistemas funcionan correctamente.")
