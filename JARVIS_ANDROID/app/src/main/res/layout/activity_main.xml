@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:gravity="center_horizontal"
+    android:background="#05070B">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="J.A.R.V.I.S"
+        android:textSize="32sp"
+        android:textStyle="bold"
+        android:textColor="#19C8FF"
+        android:letterSpacing="0.18"
+        android:layout_marginTop="28dp"/>
+
+    <TextView
+        android:id="@+id/systemState"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="SYSTEM ONLINE"
+        android:textSize="12sp"
+        android:textColor="#8BA7B5"
+        android:layout_marginTop="8dp"/>
+
+    <FrameLayout
+        android:layout_width="210dp"
+        android:layout_height="210dp"
+        android:layout_marginTop="38dp">
+
+        <View
+            android:layout_width="210dp"
+            android:layout_height="210dp"
+            android:background="@drawable/hud_ring"/>
+
+        <TextView
+            android:id="@+id/arcCore"
+            android:layout_width="150dp"
+            android:layout_height="150dp"
+            android:layout_gravity="center"
+            android:gravity="center"
+            android:text="J"
+            android:textSize="72sp"
+            android:textStyle="bold"
+            android:textColor="#19C8FF"/>
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/responseText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Esperando una orden..."
+        android:textSize="16sp"
+        android:gravity="center"
+        android:textColor="#D8EAF2"
+        android:layout_marginTop="30dp"
+        android:minHeight="60dp"/>
+
+    <Button
+        android:id="@+id/listenButton"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:text="HABLAR CON JARVIS"
+        android:textColor="#19C8FF"
+        android:background="@drawable/hud_button"
+        android:layout_marginTop="18dp"/>
+
+    <Button
+        android:id="@+id/cameraButton"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:text="ACTIVAR CÁMARA"
+        android:textColor="#19C8FF"
+        android:background="@drawable/hud_button"
+        android:layout_marginTop="12dp"/>
+</LinearLayout>
