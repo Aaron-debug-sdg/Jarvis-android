@@ -26,7 +26,12 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
     private val cameraRequest = 1001
     private val wakeReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == JarvisWakeService.ACTION_WAKE) {
+            if (intent?.action == JarvisWakeService.ACTION_COMMAND) {
+                val command = intent.getStringExtra(JarvisWakeService.EXTRA_COMMAND).orEmpty()
+                state.text = "COMMAND RECEIVED"
+                response.text = command
+                processCommand(command)
+            } else if (intent?.action == JarvisWakeService.ACTION_WAKE) {
                 state.text = "JARVIS ACTIVATED"
                 response.text = "Sí, te escucho."
                 speak("Sí, te escucho.")
@@ -111,7 +116,10 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
     }
 
     private fun registerWakeReceiver() {
-        val filter = IntentFilter(JarvisWakeService.ACTION_WAKE)
+        val filter = IntentFilter().apply {
+            addAction(JarvisWakeService.ACTION_WAKE)
+            addAction(JarvisWakeService.ACTION_COMMAND)
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(wakeReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
         } else {
