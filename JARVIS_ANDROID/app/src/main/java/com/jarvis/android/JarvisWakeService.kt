@@ -16,6 +16,7 @@ class JarvisWakeService : Service() {
 
     private var recognizer: SpeechRecognizer? = null
     private var restarting = false
+    private var commandMode = false
 
     override fun onCreate() {
         super.onCreate()
@@ -34,7 +35,13 @@ class JarvisWakeService : Service() {
                 val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 val heard = matches?.joinToString(" ")?.lowercase(Locale.ROOT).orEmpty()
 
-                if (heard.contains("jarvis")) {
+                if (commandMode) {
+                    commandMode = false
+                    sendBroadcast(Intent(ACTION_COMMAND).apply {
+                        putExtra(EXTRA_COMMAND, heard)
+                    })
+                } else if (heard.contains("jarvis")) {
+                    commandMode = true
                     sendBroadcast(Intent(ACTION_WAKE))
                 }
                 restartListening()
@@ -58,6 +65,7 @@ class JarvisWakeService : Service() {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-ES")
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
         }
         recognizer?.startListening(intent)
     }
@@ -94,5 +102,7 @@ class JarvisWakeService : Service() {
 
     companion object {
         const val ACTION_WAKE = "com.jarvis.android.ACTION_WAKE"
+        const val ACTION_COMMAND = "com.jarvis.android.ACTION_COMMAND"
+        const val EXTRA_COMMAND = "command"
     }
 }
