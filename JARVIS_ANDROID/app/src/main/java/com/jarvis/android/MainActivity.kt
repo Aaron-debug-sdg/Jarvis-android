@@ -4,6 +4,8 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
+import java.text.SimpleDateFormat
+import java.util.Date
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
 import android.content.BroadcastReceiver
@@ -78,6 +80,38 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
     }
 
     private fun processCommand(command: String) {
+        val clean = command.removePrefix("jarvis").trim()
+        if (clean.isBlank()) {
+            speak("A sus órdenes.")
+            return
+        }
+        when {
+            "hora" in clean -> {
+                val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+                response.text = "Son las $time"
+                speak("Son las $time.")
+            }
+            "fecha" in clean || "día" in clean || "dia" in clean -> {
+                val date = SimpleDateFormat("EEEE d 'de' MMMM", Locale("es", "ES")).format(Date())
+                response.text = date
+                speak("Hoy es $date.")
+            }
+            "cámara" in clean || "camara" in clean -> {
+                speak("Activando cámara.")
+                prepareCamera()
+            }
+            "visión" in clean || "vision" in clean -> {
+                speak("Activando visión.")
+                prepareCamera()
+            }
+            "hola" in clean -> speak("Hola. JARVIS operativo.")
+            "cómo estás" in clean || "como estas" in clean -> speak("Todos los sistemas funcionan correctamente.")
+            "jarvis" == clean -> speak("A sus órdenes.")
+            else -> speak("He recibido la orden: $clean")
+        }
+    }
+
+    private fun legacyProcessCommand(command: String) {
         when {
             "hola" in command -> speak("Hola. JARVIS operativo.")
             "cómo estás" in command || "como estas" in command -> speak("Todos los sistemas funcionan correctamente.")
