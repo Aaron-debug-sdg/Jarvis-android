@@ -213,7 +213,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
 
     override fun onRequestPermissionsResult(
         requestCode: Int,
-        permissions: Array<out String>,
+        permissions: Array<String>,
         results: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, results)
