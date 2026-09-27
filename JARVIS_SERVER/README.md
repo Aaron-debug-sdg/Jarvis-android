@@ -22,9 +22,9 @@ En GitHub, ve a **Settings → Codespaces → Codespaces secrets → New secret*
 - `OPENAI_API_KEY` — tu clave de API de OpenAI.
 - `JARVIS_API_KEY` — una clave larga y aleatoria que usará la app Android para autenticarse.
 
-Concede acceso de los secretos al repositorio `Aaron-debug-sdg/Jarvis-android`. GitHub expone estos secretos como variables de entorno dentro de Codespaces. Si los creas mientras el Codespace ya está abierto, reinícialo para que aparezcan. citeturn0search0turn0search2
+Concede acceso de los secretos al repositorio `Aaron-debug-sdg/Jarvis-android`. GitHub expone estos secretos como variables de entorno dentro de Codespaces. Si los creas mientras el Codespace ya está abierto, reinícialo para que aparezcan.
 
-El modelo predeterminado es `gpt-5.6-luna`. Es un modelo disponible mediante la Responses API. citeturn1search0
+El modelo predeterminado es `gpt-5.6-luna`. Es un modelo disponible mediante la Responses API.
 
 ## 3. Arrancar en Codespaces
 
@@ -58,7 +58,7 @@ Por ejemplo:
 https://NOMBRE-DEL-CODESPACE-8000.app.github.dev/chat
 ```
 
-Los puertos reenviados públicos son accesibles por cualquiera que conozca la URL, por eso JARVIS exige `JARVIS_API_KEY` antes de aceptar peticiones. citeturn0search2
+Los puertos reenviados públicos son accesibles por cualquiera que conozca la URL, por eso JARVIS exige `JARVIS_API_KEY` antes de aceptar peticiones.
 
 ## 5. Probar
 
