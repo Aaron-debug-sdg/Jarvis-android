@@ -1,0 +1,41 @@
+name: Build JARVIS APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "open-jarvis-base" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout JARVIS repository
+        uses: actions/checkout@v4
+
+      - name: Checkout Open JARVIS base
+        uses: actions/checkout@v4
+        with:
+          repository: tokenarc/open-jarvis
+          path: open-jarvis
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.5'
+
+      - name: Build Open JARVIS debug APK
+        working-directory: open-jarvis
+        run: gradle assembleDebug --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: JARVIS-debug-apk
+          path: open-jarvis/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
