@@ -26,7 +26,7 @@
         android:id="@+id/aiEndpoint"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="https://tu-servidor/ask"
+        android:hint="https://tu-servidor/chat"
         android:inputType="textUri"
         android:textColor="#FFFFFF"
         android:textColorHint="#6F8792"
@@ -35,7 +35,25 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="JARVIS enviará {&quot;message&quot;:&quot;...&quot;} mediante HTTPS. No guardamos ninguna API key en la aplicación."
+        android:text="Clave del servidor (opcional)"
+        android:textColor="#D8EAF2"
+        android:textSize="16sp"
+        android:layout_marginTop="18dp"/>
+
+    <EditText
+        android:id="@+id/aiServerKey"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="X-Jarvis-Key"
+        android:inputType="textPassword"
+        android:textColor="#FFFFFF"
+        android:textColorHint="#6F8792"
+        android:layout_marginTop="10dp"/>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="La clave protege el servidor. La API key del proveedor de IA nunca se guarda en la aplicación."
         android:textColor="#8BA7B5"
         android:textSize="13sp"
         android:layout_marginTop="14dp"/>
