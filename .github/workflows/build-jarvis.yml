@@ -3,7 +3,7 @@ name: Build JARVIS APK
 on:
   workflow_dispatch:
   push:
-    branches: [ "open-jarvis-base" ]
+    branches: [ "main", "open-jarvis-base" ]
 
 permissions:
   contents: write
@@ -32,11 +32,27 @@ jobs:
         with:
           gradle-version: '8.5'
 
+      - name: Show build environment
+        run: |
+          java -version
+          gradle --version
+          test -f open-jarvis/settings.gradle
+          test -f open-jarvis/app/build.gradle
+
       - name: Build Open JARVIS debug APK
         working-directory: open-jarvis
-        run: gradle assembleDebug --no-daemon
+        run: gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee ../jarvis-build.log
+
+      - name: Upload build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: JARVIS-build-diagnostics
+          path: jarvis-build.log
+          if-no-files-found: warn
 
       - name: Upload APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: JARVIS-debug-apk
