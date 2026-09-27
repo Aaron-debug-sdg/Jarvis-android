@@ -1,27 +1,26 @@
+import json
 import os
-from typing import Any
-
 import urllib.error
 import urllib.request
-import json
+from typing import Any
 
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-app = FastAPI(title="JARVIS AI Server", version="0.1.0")
+app = FastAPI(title="JARVIS AI Server", version="0.2.0")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["POST", "GET"],
+    allow_headers=["Content-Type", "Accept", "X-Jarvis-Key"],
 )
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.6-luna")
-JARVIS_API_KEY = os.getenv("JARVIS_API_KEY", "")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.6-luna").strip()
+JARVIS_API_KEY = os.getenv("JARVIS_API_KEY", "").strip()
 
 SYSTEM_PROMPT = os.getenv(
     "JARVIS_SYSTEM_PROMPT",
@@ -48,6 +47,7 @@ def health() -> dict[str, Any]:
     return {
         "status": "ok",
         "openai_configured": bool(OPENAI_API_KEY),
+        "jarvis_key_configured": bool(JARVIS_API_KEY),
         "model": OPENAI_MODEL,
     }
 
@@ -57,7 +57,13 @@ def chat(
     request: ChatRequest,
     x_jarvis_key: str | None = Header(default=None),
 ) -> ChatResponse:
-    if JARVIS_API_KEY and x_jarvis_key != JARVIS_API_KEY:
+    if not JARVIS_API_KEY:
+        raise HTTPException(
+            status_code=503,
+            detail="JARVIS_API_KEY is not configured. Protect the public endpoint before using it.",
+        )
+
+    if x_jarvis_key != JARVIS_API_KEY:
         raise HTTPException(status_code=401, detail="Invalid JARVIS API key")
 
     message = request.message.strip()
@@ -89,9 +95,20 @@ def chat(
             data = json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as error:
         body = error.read().decode("utf-8", errors="replace")
-        raise HTTPException(status_code=502, detail=f"AI provider error: {body[:500]}")
+        raise HTTPException(
+            status_code=502,
+            detail=f"AI provider error: {body[:500]}",
+        ) from error
     except urllib.error.URLError as error:
-        raise HTTPException(status_code=502, detail=f"AI provider unavailable: {error.reason}")
+        raise HTTPException(
+            status_code=502,
+            detail=f"AI provider unavailable: {error.reason}",
+        ) from error
+    except TimeoutError as error:
+        raise HTTPException(
+            status_code=504,
+            detail="AI provider request timed out",
+        ) from error
 
     reply = data.get("output_text", "").strip()
     if not reply:
