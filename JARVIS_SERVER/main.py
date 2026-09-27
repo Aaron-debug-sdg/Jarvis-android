@@ -8,7 +8,7 @@ from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-app = FastAPI(title="JARVIS AI Server", version="0.2.0")
+app = FastAPI(title="JARVIS AI Server", version="0.3.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -18,8 +18,8 @@ app.add_middleware(
     allow_headers=["Content-Type", "Accept", "X-Jarvis-Key"],
 )
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.6-luna").strip()
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "").strip()
+ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-opus-5-5").strip()
 JARVIS_API_KEY = os.getenv("JARVIS_API_KEY", "").strip()
 
 SYSTEM_PROMPT = os.getenv(
@@ -39,16 +39,16 @@ class ChatResponse(BaseModel):
 
 @app.get("/")
 def root() -> dict[str, str]:
-    return {"name": "JARVIS AI Server", "status": "online"}
+    return {"name": "JARVIS AI Server", "status": "online", "provider": "anthropic"}
 
 
 @app.get("/health")
 def health() -> dict[str, Any]:
     return {
         "status": "ok",
-        "openai_configured": bool(OPENAI_API_KEY),
+        "anthropic_configured": bool(ANTHROPIC_API_KEY),
         "jarvis_key_configured": bool(JARVIS_API_KEY),
-        "model": OPENAI_MODEL,
+        "model": ANTHROPIC_MODEL,
     }
 
 
@@ -70,21 +70,23 @@ def chat(
     if not message:
         raise HTTPException(status_code=400, detail="message cannot be empty")
 
-    if not OPENAI_API_KEY:
-        raise HTTPException(status_code=503, detail="OPENAI_API_KEY is not configured")
+    if not ANTHROPIC_API_KEY:
+        raise HTTPException(status_code=503, detail="ANTHROPIC_API_KEY is not configured")
 
     payload = {
-        "model": OPENAI_MODEL,
-        "instructions": SYSTEM_PROMPT,
-        "input": message,
+        "model": ANTHROPIC_MODEL,
+        "max_tokens": 2048,
+        "system": SYSTEM_PROMPT,
+        "messages": [{"role": "user", "content": message}],
     }
 
     request_data = json.dumps(payload).encode("utf-8")
     http_request = urllib.request.Request(
-        "https://api.openai.com/v1/responses",
+        "https://api.anthropic.com/v1/messages",
         data=request_data,
         headers={
-            "Authorization": f"Bearer {OPENAI_API_KEY}",
+            "x-api-key": ANTHROPIC_API_KEY,
+            "anthropic-version": "2023-06-01",
             "Content-Type": "application/json",
         },
         method="POST",
@@ -97,28 +99,26 @@ def chat(
         body = error.read().decode("utf-8", errors="replace")
         raise HTTPException(
             status_code=502,
-            detail=f"AI provider error: {body[:500]}",
+            detail=f"Claude API error: {body[:500]}",
         ) from error
     except urllib.error.URLError as error:
         raise HTTPException(
             status_code=502,
-            detail=f"AI provider unavailable: {error.reason}",
+            detail=f"Claude API unavailable: {error.reason}",
         ) from error
     except TimeoutError as error:
         raise HTTPException(
             status_code=504,
-            detail="AI provider request timed out",
+            detail="Claude API request timed out",
         ) from error
 
-    reply = data.get("output_text", "").strip()
-    if not reply:
-        for item in data.get("output", []):
-            for content in item.get("content", []):
-                if content.get("type") == "output_text":
-                    reply += content.get("text", "")
-        reply = reply.strip()
+    reply_parts = []
+    for block in data.get("content", []):
+        if block.get("type") == "text":
+            reply_parts.append(block.get("text", ""))
 
+    reply = "".join(reply_parts).strip()
     if not reply:
-        raise HTTPException(status_code=502, detail="AI provider returned no text")
+        raise HTTPException(status_code=502, detail="Claude API returned no text")
 
     return ChatResponse(reply=reply)
