@@ -12,6 +12,8 @@ class JarvisBrain(context: Context) {
 
     suspend fun ask(prompt: String): String = withContext(Dispatchers.IO) {
         val endpoint = preferences.getString("ai_endpoint", null)
+        val serverKey = preferences.getString("ai_server_key", "").orEmpty()
+
         if (endpoint.isNullOrBlank()) {
             return@withContext "Mi núcleo local está operativo. Configura un servidor de IA en Ajustes para activar la conversación inteligente."
         }
@@ -20,11 +22,12 @@ class JarvisBrain(context: Context) {
             val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
                 connectTimeout = 10000
-                readTimeout = 20000
+                readTimeout = 60000
                 doOutput = true
                 doInput = true
                 setRequestProperty("Content-Type", "application/json; charset=utf-8")
                 setRequestProperty("Accept", "application/json")
+                if (serverKey.isNotBlank()) setRequestProperty("X-Jarvis-Key", serverKey)
             }
 
             val payload = JSONObject().put("message", prompt).toString()
@@ -34,11 +37,7 @@ class JarvisBrain(context: Context) {
             val body = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
             connection.disconnect()
 
-            if (body.isBlank()) {
-                "El servicio de IA no ha devuelto una respuesta."
-            } else {
-                parseResponse(body)
-            }
+            if (body.isBlank()) "El servicio de IA no ha devuelto una respuesta." else parseResponse(body)
         }.getOrElse {
             "No puedo contactar con mi cerebro de IA ahora mismo."
         }
